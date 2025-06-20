@@ -1,0 +1,248 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Member {
+  id              String         @id @default(uuid())
+  name            String
+  email           String        @unique
+  phone           String
+  joinDate        DateTime
+  photo           String?       // URL to the member's photo
+  trusteeRole     String?
+  roleStartDate   DateTime?
+  roleEndDate     DateTime?
+  accountStatus   String        @default("pending")  // pending, active, inactive
+  permissions     Json          @default("{}")       // Store permissions as JSON
+  password        String        // Hashed password
+  resetToken      String?       // For password reset
+  resetTokenExpiry DateTime?    // Reset token expiry
+  contributions   Contribution[]
+  activities      ActivityParticipant[]
+  meetings        MeetingAttendee[]
+  donations       Donation[]
+  sessions        Session[]     // Added for session management
+  auditLogs       AuditLog[]    // Added for audit logging
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("members")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  sequence    Int      @default(autoincrement())
+  groupId     String?  // To group related operations
+  parentId    String?  // For hierarchical operations
+  action      String   // CREATE, UPDATE, DELETE
+  entityType  String   // The model name being audited
+  entityId    String   // The ID of the entity being audited
+  summary     String?  // High-level description of the change
+  changes     Json?    // The changes made
+  memberId    String   // The user who made the change
+  member      Member   @relation(fields: [memberId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([groupId])
+  @@map("audit_logs")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  memberId  String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  member    Member   @relation(fields: [memberId], references: [id])
+
+  @@map("sessions")
+}
+
+model Contribution {
+  id        String   @id @default(uuid())
+  memberId  String
+  amount    Float
+  date      DateTime
+  month     String
+  year      Int
+  member    Member   @relation(fields: [memberId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contributions")
+}
+
+model Donation {
+  id        String   @id @default(uuid())
+  donor     String
+  amount    Float
+  date      DateTime
+  purpose   String
+  notes     String?
+  type      String?
+  memberId  String?
+  member    Member?  @relation(fields: [memberId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("donations")
+}
+
+model Expense {
+  id            String   @id @default(uuid())
+  description   String
+  amount        Float
+  date          DateTime
+  category      String
+  paymentMethod String
+  paidTo        String
+  billNumber    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("expenses")
+}
+
+model Activity {
+  id                  String               @id @default(uuid())
+  title               String
+  description         String
+  date                DateTime
+  startTime          String
+  endTime            String
+  location           String
+  category           String
+  status             String
+  organizer          String
+  maxParticipants    Int?
+  currentParticipants Int?
+  budget             Float?
+  actualAmount       Float?
+  contributionDate   DateTime?
+  contributionNotes  String?
+  expenses           Float?
+  notes              String?
+  participants       ActivityParticipant[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@map("activities")
+}
+
+model ActivityParticipant {
+  activityId String
+  memberId   String
+  activity   Activity @relation(fields: [activityId], references: [id])
+  member     Member   @relation(fields: [memberId], references: [id])
+  role       String?  // organizer, volunteer, participant
+  status     String?  // registered, attended, no-show
+  notes      String?
+
+  @@id([activityId, memberId])
+  @@map("activity_participants")
+}
+
+model WorkshopResource {
+  id              String   @id @default(uuid())
+  name            String
+  specialization  String
+  type            String
+  expertise       Json
+  referenceName   String
+  relationship    String
+  referenceEmail  String
+  referencePhone  String
+  contactEmail    String
+  contactPhone    String
+  contactAddress  String
+  availability    String
+  previousWorkshops String
+  notes           String
+  status          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("workshop_resources")
+}
+
+model Meeting {
+  id          String            @id @default(uuid())
+  title       String
+  date        DateTime
+  startTime   String
+  endTime     String
+  location    String
+  agenda      String
+  minutes     String
+  decisions   MeetingDecision[]
+  attendees   MeetingAttendee[]
+  attachments MeetingAttachment[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("meetings")
+}
+
+model MeetingAttendee {
+  meetingId String
+  memberId  String
+  role      String?
+  present   Boolean  @default(false)
+  meeting   Meeting  @relation(fields: [meetingId], references: [id])
+  member    Member   @relation(fields: [memberId], references: [id])
+
+  @@id([meetingId, memberId])
+  @@map("meeting_attendees")
+}
+
+model MeetingDecision {
+  id        String   @id @default(uuid())
+  meetingId String
+  decision  String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id])
+
+  @@map("meeting_decisions")
+}
+
+model MeetingAttachment {
+  id        String   @id @default(uuid())
+  meetingId String
+  name      String
+  url       String
+  type      String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id])
+
+  @@map("meeting_attachments")
+}
+
+model Link {
+  id          String   @id @default(uuid())
+  title       String
+  url         String
+  category    String
+  description String?
+  icon        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("links")
+}
+
+model SystemConfig {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_configs")
+} 
