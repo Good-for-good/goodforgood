@@ -107,7 +107,7 @@ export const backupServices = {
       if (type === 'cloud') {
         // Upload to Google Drive
         console.log('Uploading backup to Google Drive...')
-        const backupJson = JSON.stringify(backup, null, 2)
+      const backupJson = JSON.stringify(backup, null, 2)
         const webViewLink = await googleDriveService.uploadFile(filename, backupJson)
         console.log('Backup created successfully in Google Drive')
         return webViewLink
@@ -315,5 +315,57 @@ export const backupServices = {
    */
   updateBackupSchedule: async (config: BackupScheduleConfig): Promise<void> => {
     // Implementation remains the same
+  },
+
+  /**
+   * Get information about a specific backup file
+   */
+  getBackupInfo: async (fileId: string, type: 'local' | 'cloud' = 'local'): Promise<{
+    timestamp: string;
+    version: string;
+    recordCounts: Record<string, number>;
+  }> => {
+    try {
+      let backupContent: string;
+      
+      if (type === 'cloud') {
+        backupContent = await googleDriveService.downloadFile(fileId);
+      } else {
+        const backupPath = path.join(process.cwd(), 'backups', fileId);
+        if (!fs.existsSync(backupPath)) {
+          throw new Error('Backup file not found');
+        }
+        backupContent = fs.readFileSync(backupPath, 'utf8');
+      }
+
+      const backup = JSON.parse(backupContent);
+
+      // Calculate record counts
+      const recordCounts: Record<string, number> = {
+        members: backup.members?.length || 0,
+        contributions: backup.contributions?.length || 0,
+        donations: backup.donations?.length || 0,
+        expenses: backup.expenses?.length || 0,
+        activities: backup.activities?.length || 0,
+        activityParticipants: backup.activityParticipants?.length || 0,
+        workshopResources: backup.workshopResources?.length || 0,
+        meetings: backup.meetings?.length || 0,
+        meetingAttendees: backup.meetingAttendees?.length || 0,
+        meetingDecisions: backup.meetingDecisions?.length || 0,
+        meetingAttachments: backup.meetingAttachments?.length || 0,
+        links: backup.links?.length || 0,
+        sessions: backup.sessions?.length || 0,
+        auditLogs: backup.auditLogs?.length || 0
+      };
+
+      return {
+        timestamp: backup.timestamp || '',
+        version: backup.version || '1.0',
+        recordCounts
+      };
+    } catch (error) {
+      console.error('Error getting backup info:', error);
+      throw new Error('Failed to get backup information');
+    }
   }
 } 

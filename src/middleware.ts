@@ -161,7 +161,7 @@ export async function middleware(request: NextRequest) {
       }
 
       const member = await validateSessionToken(token, request);
-      if (!member) {
+  if (!member) {
         const res = redirectToLogin();
         res.cookies.delete('auth_token');
         return res;
@@ -170,11 +170,11 @@ export async function middleware(request: NextRequest) {
       // Check president role for backup routes
       if (isPresidentRoute && !isPresident(member)) {
         return redirectToUnauthorized();
-      }
+  }
 
       // Check permissions if required
       const requiredPermission = getRequiredPermission(path);
-      if (requiredPermission && !hasPermission(member, requiredPermission)) {
+  if (requiredPermission && !hasPermission(member, requiredPermission)) {
         return redirectToUnauthorized();
       }
     }

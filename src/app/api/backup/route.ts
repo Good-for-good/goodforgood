@@ -91,6 +91,17 @@ export async function GET(request: NextRequest) {
         const backups = await backupServices.listBackups(type)
         return NextResponse.json({ backups })
 
+      case 'info':
+        if (!fileId) {
+          return NextResponse.json({ error: 'Missing fileId parameter' }, { status: 400 })
+        }
+        const info = await backupServices.getBackupInfo(fileId, type)
+        return NextResponse.json({ info })
+
+      case 'schedule':
+        const schedule = await backupServices.getBackupSchedule()
+        return NextResponse.json({ schedule })
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }

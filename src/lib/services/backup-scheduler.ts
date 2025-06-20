@@ -76,7 +76,7 @@ class BackupScheduler {
         // Create backup
         const backupResult = await backupServices.createBackup(backupType)
         console.log('Scheduled backup created:', backupResult)
-
+        
         // Clean up old backups
         const backups = await backupServices.listBackups(backupType)
         if (backups.length > config.retentionDays) {

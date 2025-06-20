@@ -99,18 +99,21 @@ export default function BackupManager() {
   }
 
   // Fetch backup info
-  const fetchBackupInfo = async (file: string) => {
+  const fetchBackupInfo = async (fileId: string) => {
     try {
+      setIsLoading(true)
       setError(null)
-      const response = await fetch(`/api/backup?action=info&file=${encodeURIComponent(file)}`)
+      const response = await fetch(`/api/backup?action=info&fileId=${fileId}&type=local`)
       if (!response.ok) {
-        throw { response }
+        throw new Error('Failed to fetch backup info')
       }
       const data = await response.json()
       setBackupInfo(data.info)
     } catch (error) {
-      handleApiError(error, 'Failed to fetch backup info')
-      setBackupInfo(null)
+      console.error('Error fetching backup info:', error)
+      setError('Failed to fetch backup information')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -456,66 +459,28 @@ export default function BackupManager() {
             <div className="mt-8">
               <h2 className="text-xl font-semibold mb-6">Backup Details</h2>
               <div className="border rounded-lg p-6">
-                {backupInfo ? (
-                  <>
-                    <p><strong>Created:</strong> {new Date(backupInfo.timestamp).toLocaleString()}</p>
-                    <p><strong>Version:</strong> {backupInfo.version}</p>
-                    
-                    <h3 className="font-semibold mt-4 mb-2">Record Counts:</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(backupInfo.recordCounts).map(([table, count]) => (
-                        <div key={table}>
-                          <span className="font-medium">{table}:</span> {count}
-                        </div>
-                      ))}
+                {isLoading ? (
+                  <div>Loading backup details...</div>
+                ) : error ? (
+                  <div className="text-red-500">{error}</div>
+                ) : backupInfo ? (
+                  <div className="space-y-4">
+                    <div>
+                      <p><strong>Timestamp:</strong> {new Date(backupInfo.timestamp).toLocaleString()}</p>
+                      <p><strong>Version:</strong> {backupInfo.version}</p>
                     </div>
-
-                    {verificationResult && (
-                      <div className="mt-4">
-                        <h3 className="font-semibold mb-2">Verification Result:</h3>
-                        <div className={`p-3 rounded ${verificationResult.isValid ? 'bg-green-50' : 'bg-red-50'}`}>
-                          {verificationResult.isValid ? (
-                            <div className="flex items-center text-green-700">
-                              <CheckCircleIcon className="h-5 w-5 mr-2" />
-                              Backup is valid
-                            </div>
-                          ) : (
-                            <div>
-                              <div className="flex items-center text-red-700 mb-2">
-                                <XCircleIcon className="h-5 w-5 mr-2" />
-                                Backup has issues
-                              </div>
-                              <ul className="list-disc list-inside text-red-600 text-sm">
-                                {verificationResult.issues.map((issue, index) => (
-                                  <li key={index}>{issue}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Record Counts:</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {Object.entries(backupInfo.recordCounts).map(([key, count]) => (
+                          <div key={key} className="bg-gray-50 p-2 rounded">
+                            <p className="capitalize">{key}: {count}</p>
+                          </div>
+                        ))}
                       </div>
-                    )}
-
-                    <div className="mt-6 space-x-4">
-                      <button
-                        onClick={restoreBackup}
-                        disabled={isLoading}
-                        className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 disabled:opacity-50"
-                      >
-                        {isLoading ? 'Processing...' : 'Restore from this Backup'}
-                      </button>
-                      <button
-                        onClick={() => verifyBackup(selectedBackup)}
-                        disabled={isLoading}
-                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-                      >
-                        {isLoading ? 'Processing...' : 'Verify Backup'}
-                      </button>
                     </div>
-                  </>
-                ) : (
-                  <p className="text-gray-500">Loading backup details...</p>
-                )}
+                  </div>
+                ) : null}
               </div>
             </div>
           )}
