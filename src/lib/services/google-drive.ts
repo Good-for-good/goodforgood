@@ -1,25 +1,56 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 
+// Helper function to clean and format the private key
+function formatPrivateKey(key: string | undefined): string {
+  if (!key) {
+    throw new Error('Private key is not configured');
+  }
+
+  // Remove any surrounding quotes
+  let cleanKey = key.trim().replace(/^["']|["']$/g, '');
+  
+  // Ensure proper line breaks
+  if (!cleanKey.includes('\\n') && !cleanKey.includes('\n')) {
+    // If no line breaks found, try to add them
+    cleanKey = cleanKey
+      .replace(/-----BEGIN PRIVATE KEY-----/, '-----BEGIN PRIVATE KEY-----\\n')
+      .replace(/-----END PRIVATE KEY-----/, '\\n-----END PRIVATE KEY-----')
+      .replace(/([A-Za-z0-9+/=]{64})/g, '$1\\n');
+  }
+
+  // Replace literal \n with actual line breaks
+  return cleanKey.replace(/\\n/g, '\n');
+}
+
 // Initialize the Google Drive API client
 function getDriveClient() {
   try {
     // Debug logging
     console.log('=== Google Drive Client Debug ===');
     console.log('Initializing Google Drive client...');
-    console.log('Service account email configured:', !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+    console.log('Service account email:', process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
     console.log('Private key configured:', !!process.env.GOOGLE_PRIVATE_KEY);
     console.log('Cloud backup enabled:', process.env.NEXT_PUBLIC_ENABLE_CLOUD_BACKUP === 'true');
     
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-      throw new Error('Missing required Google Drive credentials');
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+      throw new Error('Service account email is not configured');
     }
 
-    // Debug the private key format (safely)
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
-    console.log('Private key starts with:', privateKey.substring(0, 27));
-    console.log('Private key ends with:', privateKey.slice(-25));
-    console.log('Private key length:', privateKey.length);
+    // Format the private key
+    const privateKey = formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+    
+    // Verify the private key format
+    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') || 
+        !privateKey.includes('-----END PRIVATE KEY-----')) {
+      throw new Error('Invalid private key format');
+    }
+
+    console.log('Private key format verification:');
+    console.log('- Starts with correct header:', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
+    console.log('- Ends with correct footer:', privateKey.endsWith('-----END PRIVATE KEY-----'));
+    console.log('- Contains proper line breaks:', privateKey.includes('\n'));
+    console.log('- Key length:', privateKey.length);
     
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -30,7 +61,7 @@ function getDriveClient() {
     });
 
     // Test the auth configuration
-    console.log('Testing Google Auth configuration...');
+    console.log('Auth configuration created successfully');
     return google.drive({ version: 'v3', auth });
   } catch (error) {
     console.error('=== Google Drive Client Error ===');
