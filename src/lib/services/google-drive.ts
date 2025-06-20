@@ -4,16 +4,22 @@ import { Readable } from 'stream';
 // Initialize the Google Drive API client
 function getDriveClient() {
   try {
-    // Log configuration status (without exposing sensitive data)
+    // Debug logging
+    console.log('=== Google Drive Client Debug ===');
     console.log('Initializing Google Drive client...');
     console.log('Service account email configured:', !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
     console.log('Private key configured:', !!process.env.GOOGLE_PRIVATE_KEY);
+    console.log('Cloud backup enabled:', process.env.NEXT_PUBLIC_ENABLE_CLOUD_BACKUP === 'true');
     
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
       throw new Error('Missing required Google Drive credentials');
     }
 
+    // Debug the private key format (safely)
     const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+    console.log('Private key starts with:', privateKey.substring(0, 27));
+    console.log('Private key ends with:', privateKey.slice(-25));
+    console.log('Private key length:', privateKey.length);
     
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -23,9 +29,17 @@ function getDriveClient() {
       scopes: ['https://www.googleapis.com/auth/drive.file'],
     });
 
+    // Test the auth configuration
+    console.log('Testing Google Auth configuration...');
     return google.drive({ version: 'v3', auth });
   } catch (error) {
-    console.error('Error initializing Google Drive client:', error);
+    console.error('=== Google Drive Client Error ===');
+    console.error('Error details:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw new Error(`Failed to initialize Google Drive client: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -36,6 +50,7 @@ export const googleDriveService = {
    */
   uploadFile: async (fileName: string, content: string, mimeType = 'application/json'): Promise<string> => {
     try {
+      console.log('Attempting to upload file:', fileName);
       const drive = getDriveClient();
       
       // Convert string content to readable stream
@@ -45,7 +60,9 @@ export const googleDriveService = {
 
       // Get the backup folder ID, create if doesn't exist
       const folderName = 'GoodForGood Backups';
+      console.log('Getting/Creating folder:', folderName);
       const folderId = await googleDriveService.getOrCreateFolder(folderName);
+      console.log('Using folder ID:', folderId);
 
       const fileMetadata = {
         name: fileName,
@@ -57,16 +74,18 @@ export const googleDriveService = {
         body: contentStream,
       };
 
+      console.log('Creating file in Google Drive...');
       const response = await drive.files.create({
         requestBody: fileMetadata,
         media,
         fields: 'id,webViewLink',
       });
 
+      console.log('File created successfully:', response.data);
       return response.data.webViewLink || '';
     } catch (error) {
       console.error('Error uploading file to Google Drive:', error);
-      throw new Error('Failed to upload file to Google Drive');
+      throw new Error(`Failed to upload file to Google Drive: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
 
